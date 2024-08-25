@@ -73,6 +73,8 @@ async def get_user_with_linked_ids(user_id: str):
     # Combine linked IDs from both the embedded and separate collection approaches
     combined_linked_ids = user.get("linked_ids", []) + [linked["id_link"] for linked in linked_ids]
 
+    # Convert ObjectId to str for proper JSON serialization
+    user['_id'] = str(user['_id'])
     return {"user": user, "linked_ids": combined_linked_ids}
 
 # Chain Delete
