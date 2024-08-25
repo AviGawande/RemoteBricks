@@ -20,9 +20,18 @@ async def register_user(user: UserRegistration):
         "username": user.username,
         "email": user.email,
         "password": hashed_password,
+        "linked_ids": []  # Placeholder for linked IDs
     }
-    users_collection.insert_one(new_user)
-    return {"message": "User registered successfully"}
+    result = users_collection.insert_one(new_user)
+
+    # Create an entry in the linked_ids collection for this user
+    linked_id_entry = {
+        "user_id": result.inserted_id,  # Using the generated ObjectId for the user
+        "id_link": "initial_id"  # Replace "initial_id" with the actual ID you want to link
+    }
+    ids_collection.insert_one(linked_id_entry)
+
+    return {"message": "User registered and linked ID created successfully"}
 
 # Login Endpoint
 @app.post("/login")
@@ -36,15 +45,23 @@ async def login_user(user: UserLogin):
 # Linking ID Endpoint
 @app.post("/link_id")
 async def link_id(link_data: LinkID):
-    db_user = users_collection.find_one({"_id": link_data.user_id})
+    db_user = users_collection.find_one({"_id": ObjectId(link_data.user_id)})
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    linked_id = {"user_id": db_user["_id"], "id_link": link_data.external_id}
+    # Push the ID to the user's linked_ids array (embedding approach)
+    users_collection.update_one(
+        {"_id": ObjectId(link_data.user_id)},
+        {"$push": {"linked_ids": link_data.id_link}}
+    )
+
+    # Alternatively, add to a separate collection (original approach)
+    linked_id = {"user_id": db_user["_id"], "id_link": link_data.id_link}
     ids_collection.insert_one(linked_id)
+
     return {"message": "ID linked successfully"}
 
-# Joins Example
+# Get User with Linked IDs
 @app.get("/user/{user_id}/linked_ids")
 async def get_user_with_linked_ids(user_id: str):
     user = users_collection.find_one({"_id": ObjectId(user_id)})
@@ -52,7 +69,11 @@ async def get_user_with_linked_ids(user_id: str):
         raise HTTPException(status_code=404, detail="User not found")
 
     linked_ids = ids_collection.find({"user_id": ObjectId(user_id)})
-    return {"user": user, "linked_ids": list(linked_ids)}
+
+    # Combine linked IDs from both the embedded and separate collection approaches
+    combined_linked_ids = user.get("linked_ids", []) + [linked["id_link"] for linked in linked_ids]
+
+    return {"user": user, "linked_ids": combined_linked_ids}
 
 # Chain Delete
 @app.delete("/user/{user_id}")
@@ -62,4 +83,12 @@ async def delete_user(user_id: str):
         raise HTTPException(status_code=404, detail="User not found")
 
     ids_collection.delete_many({"user_id": ObjectId(user_id)})
+
     return {"message": "User and associated data deleted successfully"}
+
+if __name__ == "__main__":
+    import uvicorn
+    try:
+        uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+    except Exception as e:
+        logging.error(f"Error starting the server: {e}")
