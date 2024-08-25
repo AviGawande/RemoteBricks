@@ -1,7 +1,8 @@
 # API Documentation
 
 ## Overview
-This document provides an overview of the available API endpoints. You can find the all the endpoints of  this apis on this :
+This document provides an overview of the available API endpoints. You can find the all the endpoints of  this apis on 
+this: https://www.postman.com/abhigawande123/workspace/remote-bricks-apis/collection/36164059-b3c8d355-bfc1-4369-b9d8-7ca14eff4892?action=share&creator=36164059
 Each endpoint is designed to perform specific actions related to user management and data handling. Below are descriptions for each endpoint, along with placeholders for related images.
 
 ## Endpoints
